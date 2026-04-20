@@ -1,1 +1,166 @@
+SEDE LA ROMANA
 
+Router: R2-La-Romana
+enable
+configure terminal
+hostname R2-La-Romana
+no ip domain-lookup
+ip domain-name empresa2.com.do
+enable secret cisco123
+username admin privilege 15 secret Admin123
+service password-encryption
+crypto key generate rsa modulus 1024
+ip ssh version 2
+line console 0
+ logging synchronous
+ password cisco
+ login
+exit
+line vty 0 4
+ transport input ssh
+ login local
+exit
+
+interface e0/0
+ description CONEXION-ISP-EMPRESA2
+ ip address 17.6.0.2 255.255.255.0
+ no shutdown
+exit
+
+interface e0/1
+ no shutdown
+exit
+interface e0/1.10
+ description VLAN10-GERENCIA
+ encapsulation dot1Q 10
+ ip address 172.20.0.193 255.255.255.224
+exit
+interface e0/1.20
+ description VLAN20-FINANZAS
+ encapsulation dot1Q 20
+ ip address 172.20.0.225 255.255.255.224
+exit
+interface e0/1.30
+ description VLAN30-NOC
+ encapsulation dot1Q 30
+ ip address 172.20.0.1 255.255.255.128
+exit
+interface e0/1.40
+ description VLAN40-VENTAS
+ encapsulation dot1Q 40
+ ip address 172.20.0.129 255.255.255.192
+exit
+interface e0/1.50
+ description VLAN50-SISTEMAS
+ encapsulation dot1Q 50
+ ip address 172.20.1.1 255.255.255.240
+exit
+
+crypto isakmp policy 10
+ encr aes
+ authentication pre-share
+ group 2
+exit
+crypto isakmp key itla2026 address 0.0.0.0 0.0.0.0
+crypto ipsec transform-set ESP-AES-SHA esp-aes esp-sha-hmac
+ mode transport
+exit
+crypto ipsec profile VPN-PROFILE
+ set transform-set ESP-AES-SHA
+exit
+interface Tunnel0
+ ip address 10.0.0.2 255.255.255.0
+ tunnel source e0/0
+ tunnel mode gre multipoint
+ tunnel key 2000
+ tunnel protection ipsec profile VPN-PROFILE
+ ip nhrp network-id 2
+ ip nhrp nhs [IP_TUNEL_HUB] nbma [IP_PUBLICA_HUB] multicast
+exit
+
+router ospf 1
+ router-id 2.2.2.2
+ network 172.20.0.0 0.1.255.255 area 20
+ network 10.0.0.0 0.0.0.255 area 0
+exit
+---------------------------------------------------------------------------------------
+Switch: SW-Servidores
+enable
+configure terminal
+hostname SW-Servidores
+enable secret cisco123
+username admin privilege 15 secret Admin123
+
+vlan 50
+ name SISTEMAS
+exit
+
+interface range e0/3, e1/0
+ switchport mode access
+ switchport access vlan 50
+ spanning-tree portfast
+exit
+
+interface range e0/0 - 2
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+exit
+-----------------------------------------------------------------------------------------------
+Switch: R2-SWA1 (Ventas y Gerencia)
+enable
+configure terminal
+hostname R2-SWA1
+enable secret cisco123
+
+vlan 10
+ name GERENCIA
+vlan 40
+ name VENTAS
+exit
+
+interface range e1/0 - 2
+ switchport mode access
+ switchport access vlan 40
+ switchport port-security
+ switchport port-security maximum 2
+ switchport port-security violation shutdown
+ spanning-tree portfast
+exit
+
+interface range e0/0 - 1
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+exit
+--------------------------------------------------------------------------------------
+Switch: R2-SWA2 (NOC y Finanzas)
+enable
+configure terminal
+hostname R2-SWA2
+enable secret cisco123
+
+vlan 30
+ name NOC
+vlan 20
+ name FINANZAS
+exit
+
+interface range e1/0 - 2
+ switchport mode access
+ switchport access vlan 30
+ switchport port-security
+ switchport port-security violation shutdown
+ spanning-tree portfast
+exit
+
+interface range e1/2 - 3
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+exit
+----------------------------------------------------------------------------------------
+IPs para las PCs:
+
+Win45 / Win46 (NOC): IP 172.20.0.10, Máscara 255.255.255.128, GW 172.20.0.1.
+
+Win48 / Win50 (Ventas): IP 172.20.0.135, Máscara 255.255.255.192, GW 172.20.0.129.
+
+Servidores (Sistemas): IP 172.20.1.5, Máscara 255.255.255.240, GW 172.20.1.1.
